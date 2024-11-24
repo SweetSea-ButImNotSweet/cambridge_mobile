@@ -1,6 +1,12 @@
+if os.getenv("LOCAL_LUA_DEBUGGER_VSCODE")=="1" then
+    LLDEBUGGER=require('lldebugger')
+    LLDEBUGGER.start()
+end
+
 function love.load()
 	highscores = {}
 	love.graphics.setDefaultFilter("linear", "nearest")
+
 	require "load.rpc"
 	require "load.graphics"
 	require "load.fonts"
@@ -9,19 +15,69 @@ function love.load()
 	require "load.save"
 	require "load.bigint"
 	require "load.version"
-	loadSave()
+
 	require "funcs"
+	TOUCH_SETTINGS = require 'mobile_libs.settings'
+	BUTTON = require 'mobile_libs.simple-button'
+	BUTTON.setDefaultOption{
+		draw = function(self)
+			---@type love.Font
+			self.font = self.font
+
+			love.graphics.setColor(self.backgroundColor)
+			love.graphics.rectangle('fill', self.x, self.y, self.w, self.h, self.r)
+
+			if self._pressed then
+				love.graphics.setColor(self.pressColor)
+				love.graphics.rectangle('fill', self.x, self.y, self.w, self.h, self.r)
+			elseif self._hovering then
+				love.graphics.setColor(self.hoverColor)
+				love.graphics.rectangle('fill', self.x, self.y, self.w, self.h, self.r)
+			end
+
+			local text = type(self.text) == 'function' and self.text() or self.text
+
+			local lineAmount
+			do
+				local _, t = self.font:getWrap(text, (self.w - 5) * 2)
+				lineAmount = #t
+			end
+
+			local _font_height = self.font:getHeight()
+
+			local textHeight = _font_height * (lineAmount * 0.5)
+			local textPos = self.y + (self.h * 0.5) - textHeight
+
+			love.graphics.setColor(self.textColor)
+			love.graphics.setFont(self.font)
+			love.graphics.printf(text, self.x + 2.5, textPos, self.w - 5, self.textOrientation)
+
+			love.graphics.setColor(self.borderColor)
+			love.graphics.setLineWidth(1)
+			love.graphics.rectangle('line', self.x, self.y, self.w, self.h, self.r)
+		end,
+		backgroundColor = {0, 0, 0, 0.8},
+		pressColor = {0.4, 1, 1, 0.5},
+		borderColor = {1, 1, 1, 0.8},
+		font=font_3x5_2,
+	}
+	require 'mobile_libs.vctrl'
+
+	loadSave()
 	require "scene"
-	
+
 	--config["side_next"] = false
 	--config["reverse_rotate"] = true
 	--config["das_last_key"] = false
 	--config["fullscreen"] = false
 
 	love.window.setMode(love.graphics.getWidth(), love.graphics.getHeight(), {resizable = true});
-		
+
 	-- used for screenshots
 	GLOBAL_CANVAS = love.graphics.newCanvas()
+	-- Used for transforming 2D positions
+	GLOBAL_TRANSFORM = love.math.newTransform()
+	love.resize(love.graphics.getWidth(), love.graphics.getHeight())
 
 	-- aliasing to prevent people using math.random by accident
 	math.random = love.math.random
@@ -78,7 +134,7 @@ function love.draw()
 		(height - scale_factor * 480) / 2
 	)
 	love.graphics.scale(scale_factor)
-		
+
 	scene:render()
 
 	if config.gamesettings.display_gamemode == 1 or scene.title == "Title" then
@@ -89,9 +145,9 @@ function love.draw()
 			"fps - " .. version, 0, 460, 635, "right"
 		)
 	end
-	
+
 	love.graphics.pop()
-		
+
 	love.graphics.setCanvas()
 	love.graphics.setColor(1,1,1,1)
 	love.graphics.draw(GLOBAL_CANVAS)
@@ -114,6 +170,9 @@ function love.keypressed(key, scancode)
 		scene.restart_message = true
 		if config.secret then playSE("mode_decide")
 		else playSE("erase", "single") end
+	--TEST
+	elseif scancode == "f9" and scene.title == "Title" then
+		scene = TouchConfigScene()
 	-- f12 is reserved for saving screenshots
 	elseif scancode == "f12" then
 		local ss_name = os.date("ss/%Y-%m-%d_%H-%M-%S.png")
@@ -126,7 +185,7 @@ function love.keypressed(key, scancode)
 		GLOBAL_CANVAS:newImageData():encode("png", ss_name)
 	-- function keys are reserved
 	elseif string.match(scancode, "^f[1-9]$") or string.match(scancode, "^f[1-9][0-9]+$") then
-		return	
+		return
 	-- escape is reserved for menu_back
 	elseif scancode == "escape" then
 		scene:onInputPress({input="menu_back", type="key", key=key, scancode=scancode})
@@ -146,7 +205,7 @@ function love.keyreleased(key, scancode)
 		scene:onInputRelease({input="menu_back", type="key", key=key, scancode=scancode})
 	-- function keys are reserved
 	elseif string.match(scancode, "^f[1-9]$") or string.match(scancode, "^f[1-9][0-9]+$") then
-		return	
+		return
 	-- handle all other keys; tab is reserved, but the input config scene keeps it from getting configured as a game input, so pass tab to the scene here
 	else
 		local input_released = nil
@@ -192,7 +251,7 @@ function love.joystickaxis(joystick, axis, value)
 		config.input.joysticks and
 		config.input.joysticks[joystick:getName()] and
 		config.input.joysticks[joystick:getName()].axes and
-		config.input.joysticks[joystick:getName()].axes[axis] 
+		config.input.joysticks[joystick:getName()].axes[axis]
 	then
 		if math.abs(value) >= 1 then
 			input_pressed = config.input.joysticks[joystick:getName()].axes[axis][value >= 1 and "positive" or "negative"]
@@ -283,6 +342,14 @@ end
 function love.resize(w, h)
 	GLOBAL_CANVAS:release()
 	GLOBAL_CANVAS = love.graphics.newCanvas(w, h)
+
+	SCREEN_SCALE_FACTOR = math.min(w / 640, h / 480)
+	GLOBAL_TRANSFORM:setTransformation(
+		(w - SCREEN_SCALE_FACTOR * 640) / 2,
+		(h - SCREEN_SCALE_FACTOR * 480) / 2,
+		0,
+		SCREEN_SCALE_FACTOR
+	)
 end
 
 -- higher values of TARGET_FPS will make the game run "faster"
@@ -316,7 +383,7 @@ function love.run()
 		if love.timer then
 			processBGMFadeout(love.timer.step())
 		end
-		
+
 		if scene and scene.update and love.timer then
 			scene:update()
 
