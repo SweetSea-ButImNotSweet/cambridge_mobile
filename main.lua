@@ -1,6 +1,6 @@
 if os.getenv("LOCAL_LUA_DEBUGGER_VSCODE")=="1" then
-    LLDEBUGGER=require('lldebugger')
-    LLDEBUGGER.start()
+	LLDEBUGGER=require('lldebugger')
+	LLDEBUGGER.start()
 end
 
 function love.load()
@@ -17,7 +17,7 @@ function love.load()
 	require "load.version"
 
 	require "funcs"
-	TOUCH_SETTINGS = require 'mobile_libs.settings'
+	TOUCH_SETTINGS = require 'mobile_libs.touch_settings'
 	BUTTON = require 'mobile_libs.simple-button'
 	BUTTON.setDefaultOption{
 		draw = function(self)
@@ -62,6 +62,8 @@ function love.load()
 		font=font_3x5_2,
 	}
 	require 'mobile_libs.vctrl'
+	VCTRL.new(TOUCH_SETTINGS.bind[1])
+	VCTRL.toggle(true)
 
 	loadSave()
 	require "scene"
@@ -136,6 +138,7 @@ function love.draw()
 	love.graphics.scale(scale_factor)
 
 	scene:render()
+	if scene.title ~= TouchConfigScene.title then VCTRL.draw() end
 
 	if config.gamesettings.display_gamemode == 1 or scene.title == "Title" then
 		love.graphics.setFont(font_3x5_2)
@@ -335,8 +338,49 @@ function love.joystickhat(joystick, hat, direction)
 	end
 end
 
+function love.mousepressed(x, y, b, isTouch, presses)
+	if isTouch then return end
+	local x,y=GLOBAL_TRANSFORM:inverseTransformPoint(x,y)
+	if scene.title ~= 'Touchscreen configuration' and VCTRL.press(x, y, 1) then
+		return -- Avoid duplicate
+	end
+	scene:onInputPress{type = "mouse", x = x, y = y, presses = presses}
+end
+function love.mousereleased(x, y, b, isTouch, presses)
+	if isTouch then return end
+	local x,y=GLOBAL_TRANSFORM:inverseTransformPoint(x,y)
+	if scene.title ~= 'Touchscreen configuration' and VCTRL.release(1) then
+		return -- Avoid duplicate
+	end
+	scene:onInputRelease{type = "mouse", x = x, y = y, presses = presses}
+end
+function love.mousemoved(x, y, dx, dy, isTouch)
+	if isTouch then return end
+	local x,y=GLOBAL_TRANSFORM:inverseTransformPoint(x,y)
+	local dx,dy=dx/SCREEN_SCALE_FACTOR,dy/SCREEN_SCALE_FACTOR
+	scene:onInputMove{type = "mouse", x = x, y = y, dx = dx, dy = dy}
+end
 function love.wheelmoved(x, y)
 	scene:onInputPress({input=nil, type="wheel", x=x, y=y})
+end
+
+function love.touchpressed(id,x,y)
+	local x,y=GLOBAL_TRANSFORM:inverseTransformPoint(x,y)
+	if scene.title ~= 'Touchscreen configuration' and VCTRL.press(x, y, id) then
+		return -- Avoid duplicate
+	end
+	scene:onInputPress{type = "touch", x = x, y = y, dx = 0, dy = 0, id = id}
+end
+function love.touchreleased(id,x,y)
+	local x,y=GLOBAL_TRANSFORM:inverseTransformPoint(x,y)
+	if scene.title ~= 'Touchscreen configuration' and VCTRL.release(id) then
+		return -- Avoid duplicate
+	end
+	scene:onInputRelease{type = "touch", x = x, y = y, dx = 0, dy = 0, id = id}
+end
+function love.touchmoved(id,x,y,dx,dy)
+	local x,y=GLOBAL_TRANSFORM:inverseTransformPoint(x,y)
+	scene:onInputMove{type = "touch", x = x, y = y, dx = dx, dy = dy, id = id}
 end
 
 function love.resize(w, h)

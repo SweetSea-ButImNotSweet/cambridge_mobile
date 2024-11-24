@@ -15,34 +15,34 @@ local function mDrawQ(obj,quad,x,y,a,k)
     love.graphics.draw(obj,quad,x,y,a,k,nil,w*.5,h*.5)
 end
 
-local empty_quad
+local alternativePfunction={}
+local alternativeRfunction={
+    touch_settings=function()
+        if (
+            scene.title ~= 'Game' and
+            scene.title ~= TouchConfigScene.title
+        ) then
+            scene = TouchConfigScene()
+        end
+    end
+}
+
+local empty_quad=gc_newQuad(1,1,1,1,1,1)
 -- A table containing quads used to draw icons for virtual control system.
--- local virtual_quad=setmetatable((function()
---     local t={}
---     local w=180
---     empty_quad=gc_newQuad(0,0,1,1,5*w,7*w)
---     for i,name in next,{
---         'left','right','up','down','',
---         'rotate_right','rotate_left','','','',
---         '','','','','',
---         '','','','','',
---         '','','menu_back','','',
---         '','','','','',
---         '','','','','menu_decide',
---     } do if #name>0 then t[name]=gc_newQuad((i-1)%5*w,math.floor((i-1)/5)*w,w,w,5*w,7*w) end end
---     t.rotate_right2, t.rotate_left2 = t.rotate_right, t.rotate_left
---     return t
--- end)(),{
---     __index=function() return empty_quad end
--- })
 local virtual_quad=setmetatable((function()
     local t={}
     local w=180
-    empty_quad=gc_newQuad(0,0,1,1,5*w,2*w)
+    empty_quad=gc_newQuad(0,0,1,1,5*w,7*w)
     for i,name in next,{
-        'left','right','up','down','restart',
-        'rotate_right','rotate_left','rotate_right2','rotate_left2'
-    } do if #name>0 then t[name]=gc_newQuad((i-1)%5*w,math.floor((i-1)/5)*w,w,w,5*w,2*w) end end
+        'left','right','up','down','',
+        'rotate_right','rotate_left','rotate_180','hold','align_view',
+        '','','','','',
+        '1','2','3','4','5',
+        '','retry','','menu_back','',
+        'touch_settings','','','','',
+        '','','','','menu_decide',
+    } do if #name>0 then t[name]=gc_newQuad((i-1)%5*w,math.floor((i-1)/5)*w,w,w,5*w,7*w) end end
+    t.rotate_right2, t.rotate_left2 = t.rotate_right, t.rotate_left
     return t
 end)(),{
     __index=function() return empty_quad end
@@ -61,11 +61,11 @@ function control_type.button:new(data)
         x=data.x or 320,
         y=data.y or 240,
         r=data.r or 80, -- size
-        shape=data.shape or 'circle',
+        shape=data.shape or 'square',
         key=data.key or 'X',
         iconSize=data.iconSize or 60,
         alpha=data.alpha or 0.75,
-        quad=virtual_quad[data.key]
+        quad=virtual_quad[data.key],
     },self)
 end
 function control_type.button:export()
@@ -78,7 +78,7 @@ function control_type.button:export()
         shape = self.shape,
         key = self.key,
         iconSize = self.iconSize,
-        alpha = self.alpha
+        alpha = self.alpha,
     }
 end
 function control_type.button:reset()
@@ -91,13 +91,21 @@ function control_type.button:press(_,_,id)
     self.lastPressTime=love.timer.getTime()
     self.pressingID=id
     -- love.keypressed(self.key, love.keyboard.getScancodeFromKey(self.key))
-    SCENE:onInputPress{input=self.key,type="virtual"}
+    if alternativePfunction[self.key] then
+        alternativePfunction[self.key]()
+    else
+        scene:onInputPress{input=self.key,type="virtual"}
+    end
 end
 function control_type.button:release()
     self.pressed=false
     self.pressingID=false
     -- love.keyreleased(self.key,love.keyboard.getScancodeFromKey(self.key))
-    SCENE:onInputRelease{input=self.key,type="virtual"}
+    if alternativeRfunction[self.key] then
+        alternativeRfunction[self.key]()
+    else
+        scene:onInputRelease{input=self.key,type="virtual"}
+    end
 end
 function control_type.button:drag(dx,dy)
     self.x,self.y=self.x+dx,self.y+dy
@@ -158,11 +166,21 @@ VCTRL.hasChanged = false
 ---@field iconSize? number
 ---@field alpha? number
 ---@field show? boolean
+---@field pressFunc function|nil
+---@field releaseFunc function|nil
 
 ---@param ... VCTRL.data[]
 ---Adding (multiple) virtual button(s)
 function VCTRL.new(...)
     for _,d in pairs(...) do table.insert(VCTRL,control_type[d.type]:new(d)) end
+end
+
+---@param key string
+---@param pfunc function|nil
+---@param rfunc function|nil
+function VCTRL.setAltFunction(key,pfunc,rfunc)
+    alternativePfunction[key] = pfunc
+    alternativeRfunction[key] = rfunc
 end
 
 ---@param toggle boolean|false

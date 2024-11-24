@@ -1,6 +1,6 @@
 ---@diagnostic disable: cast-local-type
 local TouchConfigScene = Scene:extend()
-TouchConfigScene.title = "Touchscreen config"
+TouchConfigScene.title = "Touchscreen configuration"
 
 local function roundUnit(n,u)
 	local u = u or 1
@@ -11,6 +11,12 @@ local function drawText(text, x, y, size, orientation, color)
 	love.graphics.setFont(font_3x5_3)
 	love.graphics.setColor(color)
 	love.graphics.printf(text, x, y, size*2, orientation, nil, 0.5)
+end
+local function math_clamp(x, min, max)
+    if max < min then
+        min, max = max, min
+    end
+    return x < min and min or (x > max and max or x)
 end
 
 local buttonList
@@ -25,9 +31,9 @@ local function exitSceneFunc(saved)
 	VCTRL.release()
 	BUTTON.release(buttonList)
 	if TOUCH_SETTINGS.firstTime and not saved then
-		SCENE = InputConfigScene(true)
+		scene = InputConfigScene(true)
 	else
-		SCENE = TitleScene()
+		scene = TitleScene()
 		TOUCH_SETTINGS.firstTime = false
 	end
 end
@@ -56,7 +62,7 @@ buttonList = {
 	--     codeWhenReleased = function()
 	--         VCTRL.release()
 	--         BUTTON.release(buttonList)
-	--         SCENE = TouchConfigPreviewScene()
+	--         scene = TouchConfigPreviewScene()
 	--     end
 	-- },
 	resetAll = BUTTON.new{
@@ -72,8 +78,8 @@ buttonList = {
 				VCTRL.focus = nil; focusingButton = nil
 				VCTRL.hasChanged = false
 				VCTRL.clearAll()
-				VCTRL.new(TOUCH_SETTINGS.__default__)
-				TOUCH_SETTINGS.bind[1] = TOUCH_SETTINGS.__default__
+				VCTRL.new(TOUCH_SETTINGS.__default__.bind[1])
+				TOUCH_SETTINGS.bind[1] = TOUCH_SETTINGS.__default__.bind[1]
 			end
 		end
 	},
@@ -94,7 +100,7 @@ buttonList = {
 					exitSceneFunc(true)
 				elseif selection == 2 then
 					VCTRL.clearAll()
-					VCTRL.new(TOUCH_SETTINGS.bind[1])
+					VCTRL.new(TOUCH_SETTINGS.bind[1] or {})
 					-- love.window.showMessageBox("Discarded!", "Your changes was discarded!")
 
 					exitSceneFunc()
@@ -239,16 +245,12 @@ function TouchConfigScene:render()
 
 	for _, v in ipairs(VCTRL) do
 		if v ~= focusingButton then
-			v:draw(
-				focusingButton and
-				(v.show and 0.5 or 0.1) or
-				(v.show and 1 or 0.5)
-			)
+			v:draw(v.alpha * (focusingButton and 0.25 or 1))
 		end
 	end
 	if focusingButton then
 		focusingButton:draw(
-			math.clamp(
+			math_clamp(
 				math.sin(love.timer.getTime()*4)*.5+0.1,
 				focusingButton.show and 1 or 0.1, 1
 			)
@@ -259,7 +261,7 @@ function TouchConfigScene:render()
 	BUTTON.draw(buttonList)
 end
 
----@param e SCENE_onInput
+
 function TouchConfigScene:onInputMove(e)
 	if e.type == "touch" or (e.type == "mouse" and love.mouse.isDown(1)) then
 		if VCTRL.drag(e.dx, e.dy, e.id or 1) then VCTRL.hasChanged = true end
@@ -267,7 +269,7 @@ function TouchConfigScene:onInputMove(e)
 		BUTTON.checkHovering(buttonList, e.x, e.y)
 	end
 end
----@param e SCENE_onInput
+
 function TouchConfigScene:onInputPress(e)
 	if e.type == "mouse" or e.type == "touch" then
 		if not (
@@ -281,7 +283,7 @@ function TouchConfigScene:onInputPress(e)
 		end
 	end
 end
----@param e SCENE_onInput
+
 function TouchConfigScene:onInputRelease(e)
 	if e.type == "mouse" or e.type == "touch" then
 		if not BUTTON.release(buttonList, e.x, e.y, e.id) then

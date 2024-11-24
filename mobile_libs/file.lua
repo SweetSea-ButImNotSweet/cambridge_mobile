@@ -1,6 +1,6 @@
 local FILE = {}
 local binser = require "libs.binser"
--- local bitser = require "libs.bitser"
+local bitser = require "mobile_libs.bitser"
 
 local serializer_used
 
@@ -37,5 +37,5 @@ end
 return function(lib_name)
     assert(lib_name == 'bitser' or lib_name == 'binser', '[lib_name] must be "bitser" or "binser"')
     serializer_used = lib_name
-    _G.FILE = FILE
+    return FILE
 end
