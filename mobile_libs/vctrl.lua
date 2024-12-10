@@ -24,6 +24,13 @@ local alternativeRfunction={
         ) then
             scene = TouchConfigScene()
         end
+        scene:onInputRelease{input="touch_settings", type="virtual"}
+    end,
+    align_view=function()
+        if scene.title ~= TouchConfigScene.title then
+            scene:onInputRelease{input="align_view", type="virtual"}
+            ALIGN_VIEW_RIGHT = ALIGN_VIEW_RIGHT == 1.4 and 0.5 or math.min(ALIGN_VIEW_RIGHT + 0.5,1.4)
+        end
     end
 }
 
@@ -31,18 +38,14 @@ local empty_quad=gc_newQuad(1,1,1,1,1,1)
 -- A table containing quads used to draw icons for virtual control system.
 local virtual_quad=setmetatable((function()
     local t={}
-    local w=180
-    empty_quad=gc_newQuad(0,0,1,1,5*w,7*w)
+    local w=336
+    empty_quad=gc_newQuad(0,0,1,1,5*w,4*w)
     for i,name in next,{
-        'left','right','up','down','',
-        'rotate_right','rotate_left','rotate_180','hold','align_view',
-        '','','','','',
-        '1','2','3','4','5',
-        '','retry','','menu_back','',
-        'touch_settings','','','','',
-        '','','','','menu_decide',
-    } do if #name>0 then t[name]=gc_newQuad((i-1)%5*w,math.floor((i-1)/5)*w,w,w,5*w,7*w) end end
-    t.rotate_right2, t.rotate_left2 = t.rotate_right, t.rotate_left
+        'left','right','up','down','hold',
+        'rotate_left','rotate_left2','rotate_right','rotate_right2','rotate_180',
+        'tab','menu_decide','delete','','',
+        'retry','align_view','menu_back','','',
+    } do if #name>0 then t[name]=gc_newQuad((i-1)%5*w,math.floor((i-1)/5)*w,w,w,5*w,4*w) end end
     return t
 end)(),{
     __index=function() return empty_quad end

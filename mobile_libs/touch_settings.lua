@@ -10,29 +10,29 @@ local _defaultSettings = {
     ---@type table<string,string>[]
     bind = {
         {
-            {type='button',x=  1 *  70 + 120,y =  1 * 70 + 120, r = 30, key=            'up',iconSize=50},
-            {type='button',x=  2 *  70 + 120,y =  1 * 70 + 120, r = 30, key=          'down',iconSize=50},
-            {type='button',x=  3 *  70 + 120,y =  1 * 70 + 120, r = 30, key=          'left',iconSize=50},
-            {type='button',x=  4 *  70 + 120,y =  1 * 70 + 120, r = 30, key=         'right',iconSize=50},
-            {type='button',x=  5 *  70 + 120,y =  1 * 70 + 120, r = 30, key=   'menu_decide',iconSize=50},
+            {type='button',x=  1 *  70 + 120,y =  1 * 70 + 120, r = 30, key=            'up',iconSize=80},
+            {type='button',x=  2 *  70 + 120,y =  1 * 70 + 120, r = 30, key=          'down',iconSize=80},
+            {type='button',x=  3 *  70 + 120,y =  1 * 70 + 120, r = 30, key=          'left',iconSize=80},
+            {type='button',x=  4 *  70 + 120,y =  1 * 70 + 120, r = 30, key=         'right',iconSize=80},
+            {type='button',x=  5 *  70 + 120,y =  1 * 70 + 120, r = 30, key=          'hold',iconSize=80},
 
-            {type='button',x=  1 *  70 + 120,y =  2 * 70 + 120, r = 30, key=   'rotate_left',iconSize=50},
-            {type='button',x=  2 *  70 + 120,y =  2 * 70 + 120, r = 30, key=  'rotate_left2',iconSize=50},
-            {type='button',x=  3 *  70 + 120,y =  2 * 70 + 120, r = 30, key=  'rotate_right',iconSize=50},
-            {type='button',x=  4 *  70 + 120,y =  2 * 70 + 120, r = 30, key= 'rotate_right2',iconSize=50},
-            {type='button',x=  5 *  70 + 120,y =  2 * 70 + 120, r = 30, key=         'retry',iconSize=50},
+            {type='button',x=  1 *  70 + 120,y =  2 * 70 + 120, r = 30, key=   'rotate_left',iconSize=80},
+            {type='button',x=  2 *  70 + 120,y =  2 * 70 + 120, r = 30, key=  'rotate_left2',iconSize=80},
+            {type='button',x=  3 *  70 + 120,y =  2 * 70 + 120, r = 30, key=  'rotate_right',iconSize=80},
+            {type='button',x=  4 *  70 + 120,y =  2 * 70 + 120, r = 30, key= 'rotate_right2',iconSize=80},
+            {type='button',x=  5 *  70 + 120,y =  2 * 70 + 120, r = 30, key=    'rotate_180',iconSize=80},
 
-            {type='button',x=  1 *  70 + 120,y =  3 * 70 + 120, r = 30, key=             '1',iconSize=50},
-            {type='button',x=  2 *  70 + 120,y =  3 * 70 + 120, r = 30, key=             '2',iconSize=50},
-            {type='button',x=  3 *  70 + 120,y =  3 * 70 + 120, r = 30, key=             '3',iconSize=50},
-            {type='button',x=  4 *  70 + 120,y =  3 * 70 + 120, r = 30, key=             '4',iconSize=50},
-            {type='button',x=  5 *  70 + 120,y =  3 * 70 + 120, r = 30, key=             '5',iconSize=50},
+            {type='button',x=  1 *  70 + 120,y =  3 * 70 + 120, r = 30, key=   'menu_decide',iconSize=80},
+            -- {type='button',x=  2 *  70 + 120,y =  3 * 70 + 120, r = 30, key=             '2',iconSize=80},
+            -- {type='button',x=  3 *  70 + 120,y =  3 * 70 + 120, r = 30, key=             '3',iconSize=80},
+            -- {type='button',x=  4 *  70 + 120,y =  3 * 70 + 120, r = 30, key=             '4',iconSize=80},
+            {type='button',x=  5 *  70 + 120,y =  3 * 70 + 120, r = 30, key=     'menu_back',iconSize=80},
 
-        --  {type='button',x=  1 *  70 + 120,y =  4 * 70 + 120, r = 30, key=            'up',iconSize=50},
-            {type='button',x=  2 *  70 + 120,y =  4 * 70 + 120, r = 30, key='touch_settings',iconSize=50},
-            {type='button',x=  3 *  70 + 120,y =  4 * 70 + 120, r = 30, key=    'align_view',iconSize=50},
-            {type='button',x=  4 *  70 + 120,y =  4 * 70 + 120, r = 30, key=     'menu_back',iconSize=50},
-        --  {type='button',x=  5 *  70 + 120,y =  4 * 70 + 120, r = 30, key=            'up',iconSize=50},
+            {type='button',x=  1 *  70 + 120,y =  4 * 70 + 120, r = 30, key=        'delete',iconSize=80},
+            {type='button',x=  2 *  70 + 120,y =  4 * 70 + 120, r = 30, key=           'tab',iconSize=80},
+            {type='button',x=  3 *  70 + 120,y =  4 * 70 + 120, r = 30, key=         'retry',iconSize=80},
+            {type='button',x=  4 *  70 + 120,y =  4 * 70 + 120, r = 30, key=    'align_view',iconSize=80},
+            {type='button',x=  5 *  70 + 120,y =  4 * 70 + 120, r = 30, key='touch_settings',iconSize=80},
 
         }, -- 1
         {

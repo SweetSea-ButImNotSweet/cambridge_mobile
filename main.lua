@@ -4,6 +4,7 @@ if os.getenv("LOCAL_LUA_DEBUGGER_VSCODE")=="1" then
 end
 
 function love.load()
+    ALIGN_VIEW_RIGHT = 0.5
 	highscores = {}
 	love.graphics.setDefaultFilter("linear", "nearest")
 
@@ -132,14 +133,12 @@ function love.draw()
 	local height = love.graphics.getHeight()
 	local scale_factor = math.min(width / 640, height / 480)
 	love.graphics.translate(
-		(width - scale_factor * 640) / 2,
-		(height - scale_factor * 480) / 2
+		(width - scale_factor * 640) * ALIGN_VIEW_RIGHT,
+		(height - scale_factor * 480) * 0.5
 	)
 	love.graphics.scale(scale_factor)
 
 	scene:render()
-	if scene.title ~= TouchConfigScene.title then VCTRL.draw() end
-
 	if config.gamesettings.display_gamemode == 1 or scene.title == "Title" then
 		love.graphics.setFont(font_3x5_2)
 		love.graphics.setColor(1, 1, 1, 1)
@@ -147,6 +146,20 @@ function love.draw()
 			string.format("%.2f", 1.0 / love.timer.getAverageDelta()) ..
 			"fps - " .. version, 0, 460, 635, "right"
 		)
+	end
+	
+	if scene.title ~= TouchConfigScene.title then
+	    if ALIGN_VIEW_RIGHT then
+    	    love.graphics.push()
+    	    love.graphics.origin()
+    	    love.graphics.translate(
+    	        (width - scale_factor * 640) * 0.5,
+    	        (height - scale_factor * 480) * 0.5
+    	    )
+    	    love.graphics.scale(scale_factor)
+	    end
+	    VCTRL.draw()
+	    if ALIGN_VIEW_RIGHT then love.graphics.pop() end
 	end
 
 	love.graphics.pop()

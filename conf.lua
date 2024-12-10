@@ -8,4 +8,6 @@ function love.conf(t)
 	t.window.height = 480
 	t.window.icon = "res/img/cambridge_icon.png"
 	t.window.vsync = false
+	t.window.fullscreen = true
+	t.externalstorage = true
 end
