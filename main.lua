@@ -79,11 +79,6 @@ function love.load()
 	loadSave()
 	require "scene"
 
-
-	if table.contains(args, "--tempIdentity") then
-		love.filesystem.setIdentity(love.filesystem.getIdentity() .. "-temp")
-		saveConfig()
-	end
 	--config["side_next"] = false
 	--config["reverse_rotate"] = true
 	--config["das_last_key"] = false
@@ -640,6 +635,10 @@ local function onInputPress(e)
 	end
 end
 
+local function onInputRelease(e)
+	scene:onInputRelease(e)
+end
+
 ---@param key string|nil
 ---@param scancode string|nil
 function love.keyreleased(key, scancode)
@@ -697,21 +696,11 @@ end
 ---@param axis number
 ---@param value number
 function love.joystickaxis(joystick, axis, value)
-	local input_pressed = nil
-	local positive_released = nil
-	local negative_released = nil
-	if
-		config.input and
-		config.input.joysticks and
-		config.input.joysticks[joystick:getName()] and
-		config.input.joysticks[joystick:getName()].axes and
-		config.input.joysticks[joystick:getName()].axes[axis]
-	then
-		if math.abs(value) >= 1 then
-			input_pressed = config.input.joysticks[joystick:getName()].axes[axis][value >= 1 and "positive" or "negative"]
-		end
-		positive_released = config.input.joysticks[joystick:getName()].axes[axis].positive
-		negative_released = config.input.joysticks[joystick:getName()].axes[axis].negative
+	local result_inputs = {}
+	local joystick_input_table = nil
+	local joystick_name = joystick:getName()
+	if config.input and config.input.joysticks and config.input.joysticks[joystick_name] then
+		joystick_input_table = config.input.joysticks[joystick_name]
 	end
 	if math.abs(value) >= 1 then
 		if type(joystick_input_table) == "table" then
