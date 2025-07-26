@@ -5,9 +5,9 @@ Scene = Object:extend()
 function Scene:new() end
 function Scene:update() end
 function Scene:render() end
-function Scene:onInputPress() end
-function Scene:onInputMove() end
-function Scene:onInputRelease() end
+function Scene:onInputMove(e) end
+function Scene:onInputPress(e) end
+function Scene:onInputRelease(e) end
 
 --#region Named scene-function impostors
 --        For some reason, these "scenes" must be loaded before TitleScene or else title screen bugs out
@@ -37,3 +37,4 @@ SettingsScene = require "scene.settings"
 CreditsScene = require "scene.credits"
 TitleScene = require "scene.title"
 TutorialKeybinder = require "scene.tutorial_keybinder"
+TouchConfigScene = require "mobile_scene.touch_config"

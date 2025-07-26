@@ -1,15 +1,11 @@
+if os.getenv("LOCAL_LUA_DEBUGGER_VSCODE")=="1" then
+	LLDEBUGGER=require('lldebugger')
+	LLDEBUGGER.start()
+end
 
--- Pre-load aliases
-random = love.math.random
-math.random = love.math.random
-math.randomseed = love.math.setRandomSeed
-local GLOBAL_STATE = "INIT"
-
--- This translates and scales the screen into specified dimensions.
----@type function
-local scaleToResolution
-
-function love.load(args)
+function love.load()
+    ALIGN_VIEW_RIGHT = 0.5
+	highscores = {}
 	love.graphics.setDefaultFilter("linear", "nearest")
 	require "load.fonts"
 	love.graphics.setFont(font_3x5_4)
@@ -19,6 +15,7 @@ function love.load(args)
 	math.randomseed(os.time())
 	highscores = {}
 	require "load.filesystem"
+
 	require "load.rpc"
 	require "load.graphics"
 	require "load.resources"
@@ -29,10 +26,60 @@ function love.load(args)
 	require "load.modules"
 	require "load.replays"
 	require "load.version"
-	loadSave()
+
 	require "funcs"
+	TOUCH_SETTINGS = require 'mobile_libs.touch_settings'
+	BUTTON = require 'mobile_libs.simple-button'
+	BUTTON.setDefaultOption{
+		draw = function(self)
+			---@type love.Font
+			self.font = self.font
+
+			love.graphics.setColor(self.backgroundColor)
+			love.graphics.rectangle('fill', self.x, self.y, self.w, self.h, self.r)
+
+			if self._pressed then
+				love.graphics.setColor(self.pressColor)
+				love.graphics.rectangle('fill', self.x, self.y, self.w, self.h, self.r)
+			elseif self._hovering then
+				love.graphics.setColor(self.hoverColor)
+				love.graphics.rectangle('fill', self.x, self.y, self.w, self.h, self.r)
+			end
+
+			local text = type(self.text) == 'function' and self.text() or self.text
+
+			local lineAmount
+			do
+				local _, t = self.font:getWrap(text, (self.w - 5) * 2)
+				lineAmount = #t
+			end
+
+			local _font_height = self.font:getHeight()
+
+			local textHeight = _font_height * (lineAmount * 0.5)
+			local textPos = self.y + (self.h * 0.5) - textHeight
+
+			love.graphics.setColor(self.textColor)
+			love.graphics.setFont(self.font)
+			love.graphics.printf(text, self.x + 2.5, textPos, self.w - 5, self.textOrientation)
+
+			love.graphics.setColor(self.borderColor)
+			love.graphics.setLineWidth(1)
+			love.graphics.rectangle('line', self.x, self.y, self.w, self.h, self.r)
+		end,
+		backgroundColor = {0, 0, 0, 0.8},
+		pressColor = {0.4, 1, 1, 0.5},
+		borderColor = {1, 1, 1, 0.8},
+		font=font_3x5_2,
+	}
+	require 'mobile_libs.vctrl'
+	VCTRL.new(TOUCH_SETTINGS.bind[1])
+	VCTRL.toggle(true)
+
+	loadSave()
 	require "scene"
-	
+
+
 	if table.contains(args, "--tempIdentity") then
 		love.filesystem.setIdentity(love.filesystem.getIdentity() .. "-temp")
 		saveConfig()
@@ -42,9 +89,13 @@ function love.load(args)
 	--config["das_last_key"] = false
 	--config["fullscreen"] = false
 
-		
+	love.window.setMode(love.graphics.getWidth(), love.graphics.getHeight(), {resizable = true});
+
 	-- used for screenshots
 	GLOBAL_CANVAS = love.graphics.newCanvas()
+	-- Used for transforming 2D positions
+	GLOBAL_TRANSFORM = love.math.newTransform()
+	love.resize(love.graphics.getWidth(), love.graphics.getHeight())
 
 	-- init config
 	initConfig()
@@ -172,7 +223,7 @@ function createToast(title, message, param_table)
 	local _, wrapped_title = font_3x5_2:getWrap(title, param_table.width - 30)
 	local title_lines = #wrapped_title
 	local half_toast_height = param_table.height / 2
-	
+
 	local title_offset = 0
 	local message_offset = half_toast_height
 	local font_height = font_3x5_2:getHeight()
@@ -452,10 +503,16 @@ function love.draw()
 	love.graphics.push()
 
 	-- get offset matrix
-	scaleToResolution(640, 480)
-		
-	scene:render()
+	local width = love.graphics.getWidth()
+	local height = love.graphics.getHeight()
+	local scale_factor = math.min(width / 640, height / 480)
+	love.graphics.translate(
+		(width - scale_factor * 640) / 2,
+		(height - scale_factor * 480) / 2
+	)
+	love.graphics.scale(scale_factor)
 
+	scene:render()
 	if TAS_mode then
 		love.graphics.setColor(1, 1, 1, love.timer.getTime() % 2 < 1 and 1 or 0)
 		love.graphics.setFont(font_3x5_3)
@@ -494,15 +551,30 @@ function love.draw()
 	if string.sub(love.filesystem.getIdentity(), -5) == "-temp" then
 		love.graphics.printf("TEMPORARY IDENTITY MODE", font_8x11_small, 0, 0, 640, "center")
 	end
-	
+
+	if scene.title ~= TouchConfigScene.title then
+	    if ALIGN_VIEW_RIGHT then
+    	    love.graphics.push()
+    	    love.graphics.origin()
+    	    love.graphics.translate(
+    	        (width - scale_factor * 640) * 0.5,
+    	        (height - scale_factor * 480) * 0.5
+    	    )
+    	    love.graphics.scale(scale_factor)
+	    end
+	    VCTRL.draw()
+	    if ALIGN_VIEW_RIGHT then love.graphics.pop() end
+	end
+
+
 	drawToasts()
 
 	love.graphics.pop()
-		
+
 	love.graphics.setCanvas()
 	love.graphics.setColor(1,1,1,1)
 	love.graphics.draw(GLOBAL_CANVAS)
-	
+
 	scaleToResolution(640, 480)
 	if config.visualsettings.debug_level > 2 then
 		bottom_right_corner_y_offset = bottom_right_corner_y_offset + 113
@@ -540,6 +612,9 @@ local function onInputPress(e)
 		scene.restart_message = true
 		if config.secret then playSE("mode_decide")
 		else playSE("erase", "single") end
+	--TEST
+	elseif scancode == "f9" and scene.title == "Title" then
+		scene = TouchConfigScene()
 	elseif e.input == "screenshot" then
 		local ss_name = os.date("ss/%Y-%m-%d_%H-%M-%S.png")
 		local info = love.filesystem.getInfo("ss", "directory")
@@ -548,144 +623,39 @@ local function onInputPress(e)
 			love.filesystem.createDirectory("ss")
 		end
 		print("Saving screenshot as "..love.filesystem.getSaveDirectory().."/"..ss_name)
-		local image = GLOBAL_CANVAS:newImageData()
-		image:encode("png", ss_name)
-		screenshotFunction(image)
-		image:release()
-	else
-		scene:onInputPress(e)
-	end
-end
-
-local function onInputRelease(e)
-	scene:onInputRelease(e)
-end
-
-local function multipleInputs(input_table, input)
-	local result_inputs = {}
-	for input_type, value in pairs(input_table) do
-		if input == value then
-			table.insert(result_inputs, input_type)
-		end
-	end
-	return result_inputs
-end
-
-
----@param file love.File
-function love.filedropped(file)
-	file:open("r")
-	local data = file:read()
-	file:close()
-	local raw_file_directory = file:getFilename()
-	local char_pos = raw_file_directory:gsub("\\", "/"):reverse():find("/")
-	local filename = raw_file_directory:sub(-char_pos+1)
-	local final_directory
-	local msgbox_choice = 0
-	local binser = require "libs.binser"
-	local confirmation_buttons = {"No", "Yes", enterbutton = 2}
-	if raw_file_directory:sub(-4) == ".lua" then
-		msgbox_choice = love.window.showMessageBox(love.window.getTitle(), "Where do you put "..filename.."?", { "Cancel", "Rulesets", "Modes"}, "info")
-		if msgbox_choice == 0 or msgbox_choice == 1 then
-			return
-		end
-		local directory_string = "rulesets/"
-		if msgbox_choice == 3 then
-			directory_string = "modes/"
-		end
-		final_directory = "tetris/"..directory_string
-	elseif raw_file_directory:sub(-4) == ".crp" then
-		msgbox_choice = love.window.showMessageBox(love.window.getTitle(), "What option do you select for "..filename.."?", {"Insert", "View", escapebutton = 0}, "info")
-		if msgbox_choice == 0 then
-			return
-		end
-		if msgbox_choice == 1 then
-			final_directory = "replays/"
-		elseif msgbox_choice == 2 then
-			local replay_data = binser.d(data)[1]
-			displayReplayInfoBox(replay_data)
-			return
-		end
-	elseif raw_file_directory:sub(-4) == ".zip" then
-		msgbox_choice = love.window.showMessageBox(love.window.getTitle(),
-		"What option do you select for "..filename.."?\n"..
-		"Directory: Treat the zip archive as directory\n"..
-		"Res. Packs: Add the zip file to resource packs folder\n\nPress ESC to abort.", {"Directory", "Res. Packs", escapebutton = 0}, "info")
-		if msgbox_choice == 0 then
-			return
-		end
-		if msgbox_choice == 1 then
-			return love.directorydropped(raw_file_directory)
-		elseif msgbox_choice == 2 then
-			final_directory = "resourcepacks/"
-		end
-	else
-		love.window.showMessageBox(love.window.getTitle(), "This file ("..filename..") is not one of these file types: .lua, .crp, .zip", "warning")
+		GLOBAL_CANVAS:newImageData():encode("png", ss_name)
+	-- function keys are reserved
+	elseif string.match(scancode, "^f[1-9]$") or string.match(scancode, "^f[1-9][0-9]+$") then
 		return
-	end
-	local do_write = 2
-	if love.filesystem.getInfo(final_directory..filename) then
-		do_write = love.window.showMessageBox(love.window.getTitle(), "This file ("..filename..") already exists! Do you want to override it?", confirmation_buttons, "warning")
-	end
-
-	if do_write == 2 then
-		love.filesystem.createDirectory(final_directory)
-		love.filesystem.write(final_directory..filename, data)
-		if loaded_replays then
-			if final_directory == "replays/" then
-				local replay = binser.deserialize(data)[1]
-				insertReplay(replay)
-				sortReplays()
-			else
-				refreshReplayTree()
-			end
+	-- escape is reserved for menu_back
+	elseif scancode == "escape" then
+		scene:onInputPress({input="menu_back", type="key", key=key, scancode=scancode})
+	-- pass any other key to the scene, with its configured mapping
+	else
+		local input_pressed = nil
+		if config.input and config.input.keys then
+			input_pressed = config.input.keys[scancode]
 		end
-	end
-end
-
----@param dir string
-function love.directorydropped(dir)
-	local msgbox_choice = love.window.showMessageBox(love.window.getTitle(), "Do you want to insert a directory ("..dir..") as a mod pack?", {"No", "Yes"}, "info")
-	if msgbox_choice <= 1 then
-		return
-	end
-	local success = love.filesystem.mount(dir, "directory_dropped")
-	assert(success, "Unsuccessful mount on "..dir.."!")
-	copyDirectoryRecursively("directory_dropped", "", true)
-	love.filesystem.unmount(dir)
-end
-
----@param key string|nil
----@param scancode string|nil
-function love.keypressed(key, scancode)
-	local result_inputs = {}
-	if config.input and config.input.keys then
-		result_inputs = multipleInputs(config.input.keys, scancode)
-		for _, input in pairs(result_inputs) do
-			onInputPress({input=input, type="key", key=key, scancode=scancode})
-			key = nil
-			scancode = nil
-		end
-	end
-	if #result_inputs == 0 then
-		onInputPress({type="key", key=key, scancode=scancode})
+		scene:onInputPress({input=input_pressed, type="key", key=key, scancode=scancode})
 	end
 end
 
 ---@param key string|nil
 ---@param scancode string|nil
 function love.keyreleased(key, scancode)
-	local result_inputs = {}
-	if config.input and config.input.keys then
-		result_inputs = multipleInputs(config.input.keys, scancode)
-		for _, input in pairs(result_inputs) do
-			onInputRelease({input=input, type="key", key=key, scancode=scancode})
-			key = nil
-			scancode = nil
+	-- escape is reserved for menu_back
+	if scancode == "escape" then
+		scene:onInputRelease({input="menu_back", type="key", key=key, scancode=scancode})
+	-- function keys are reserved
+	elseif string.match(scancode, "^f[1-9]$") or string.match(scancode, "^f[1-9][0-9]+$") then
+		return
+	-- handle all other keys; tab is reserved, but the input config scene keeps it from getting configured as a game input, so pass tab to the scene here
+	else
+		local input_released = nil
+		if config.input and config.input.keys then
+			input_released = config.input.keys[scancode]
 		end
-	end
-	if #result_inputs == 0 then
-		onInputRelease({type="key", key=key, scancode=scancode})
+		scene:onInputRelease({input=input_released, type="key", key=key, scancode=scancode})
 	end
 end
 
@@ -727,11 +697,21 @@ end
 ---@param axis number
 ---@param value number
 function love.joystickaxis(joystick, axis, value)
-	local result_inputs = {}
-	local joystick_input_table = nil
-	local joystick_name = joystick:getName()
-	if config.input and config.input.joysticks and config.input.joysticks[joystick_name] then
-		joystick_input_table = config.input.joysticks[joystick_name]
+	local input_pressed = nil
+	local positive_released = nil
+	local negative_released = nil
+	if
+		config.input and
+		config.input.joysticks and
+		config.input.joysticks[joystick:getName()] and
+		config.input.joysticks[joystick:getName()].axes and
+		config.input.joysticks[joystick:getName()].axes[axis]
+	then
+		if math.abs(value) >= 1 then
+			input_pressed = config.input.joysticks[joystick:getName()].axes[axis][value >= 1 and "positive" or "negative"]
+		end
+		positive_released = config.input.joysticks[joystick:getName()].axes[axis].positive
+		negative_released = config.input.joysticks[joystick:getName()].axes[axis].negative
 	end
 	if math.abs(value) >= 1 then
 		if type(joystick_input_table) == "table" then
@@ -859,78 +839,52 @@ function love.joystickhat(joystick, hat, direction)
 	end
 end
 
-local mouse_buttons_pressed = {}
-
----@param x number
----@param y number
----@param button integer
----@param istouch boolean
----@param presses integer
-function love.mousepressed(x, y, button, istouch, presses)
-	if mouse_idle > 2 then return end
-	mouse_buttons_pressed[button] = true
-	local local_x, local_y = getScaledDimensions(x, y)
-	scene:onInputPress({type="mouse", x=local_x, y=local_y, button=button, istouch=istouch, presses=presses})
+function love.mousepressed(x, y, b, isTouch, presses)
+	if isTouch then return end
+	local x,y=GLOBAL_TRANSFORM:inverseTransformPoint(x,y)
+	if scene.title ~= 'Touchscreen configuration' and VCTRL.press(x, y, 1) then
+		return -- Avoid duplicate
+	end
+	scene:onInputPress{type = "mouse", x = x, y = y, presses = presses}
+end
+function love.mousereleased(x, y, b, isTouch, presses)
+	if isTouch then return end
+	local x,y=GLOBAL_TRANSFORM:inverseTransformPoint(x,y)
+	if scene.title ~= 'Touchscreen configuration' and VCTRL.release(1) then
+		return -- Avoid duplicate
+	end
+	scene:onInputRelease{type = "mouse", x = x, y = y, presses = presses}
+end
+function love.mousemoved(x, y, dx, dy, isTouch)
+	if isTouch then return end
+	local x,y=GLOBAL_TRANSFORM:inverseTransformPoint(x,y)
+	local dx,dy=dx/SCREEN_SCALE_FACTOR,dy/SCREEN_SCALE_FACTOR
+	scene:onInputMove{type = "mouse", x = x, y = y, dx = dx, dy = dy}
 end
 
 ---@param x number
 ---@param y number
----@param button integer
----@param istouch boolean
----@param presses integer
-function love.mousereleased(x, y, button, istouch, presses)
-	if mouse_idle > 2 and not mouse_buttons_pressed[button] then return end
-	mouse_buttons_pressed[button] = false
-	local local_x, local_y = getScaledDimensions(x, y)
-	scene:onInputRelease({type="mouse", x=local_x, y=local_y, button=button, istouch=istouch, presses=presses})
+function love.wheelmoved(x, y)
+	scene:onInputPress({input=nil, type="wheel", x=x, y=y})
 end
 
----@param x number
----@param y number
----@param dx number
----@param dy number
----@param istouch boolean
-function love.mousemoved(x, y, dx, dy, istouch)
-	mouse_idle = 0
-	local local_x, local_y = getScaledDimensions(x, y)
-	local local_dx, local_dy = getScaledDimensions(dx, dy)
-	scene:onInputMove({type="mouse", x=local_x, y=local_y, dx=local_dx, dy=local_dy, istouch=istouch})
+function love.touchpressed(id,x,y)
+	local x,y=GLOBAL_TRANSFORM:inverseTransformPoint(x,y)
+	if scene.title ~= 'Touchscreen configuration' and VCTRL.press(x, y, id) then
+		return -- Avoid duplicate
+	end
+	scene:onInputPress{type = "touch", x = x, y = y, dx = 0, dy = 0, id = id}
 end
-
----@param id lightuserdata
----@param x number
----@param y number
----@param dx number
----@param dy number
----@param pressure number
-function love.touchpressed(id, x, y, dx, dy, pressure)
-	local local_x, local_y = getScaledDimensions(x, y)
-	local local_dx, local_dy = getScaledDimensions(dx, dy)
-	scene:onInputPress({type="touch", id=id, x=local_x, y=local_y, dx=local_dx, dy=local_dy, pressure=pressure})
+function love.touchreleased(id,x,y)
+	local x,y=GLOBAL_TRANSFORM:inverseTransformPoint(x,y)
+	if scene.title ~= 'Touchscreen configuration' and VCTRL.release(id) then
+		return -- Avoid duplicate
+	end
+	scene:onInputRelease{type = "touch", x = x, y = y, dx = 0, dy = 0, id = id}
 end
-
----@param id lightuserdata
----@param x number
----@param y number
----@param dx number
----@param dy number
----@param pressure number
-function love.touchmoved(id, x, y, dx, dy, pressure)
-	local local_x, local_y = getScaledDimensions(x, y)
-	local local_dx, local_dy = getScaledDimensions(dx, dy)
-	scene:onInputMove({type="touch", id=id, x=local_x, y=local_y, dx=local_dx, dy=local_dy, pressure=pressure})
-end
-
----@param id lightuserdata
----@param x number
----@param y number
----@param dx number
----@param dy number
----@param pressure number
-function love.touchreleased(id, x, y, dx, dy, pressure)
-	local local_x, local_y = getScaledDimensions(x, y)
-	local local_dx, local_dy = getScaledDimensions(dx, dy)
-	scene:onInputRelease({type="touch", id=id, x=local_x, y=local_y, dx=local_dx, dy=local_dy, pressure=pressure})
+function love.touchmoved(id,x,y,dx,dy)
+	local x,y=GLOBAL_TRANSFORM:inverseTransformPoint(x,y)
+	scene:onInputMove{type = "touch", x = x, y = y, dx = dx, dy = dy, id = id}
 end
 
 function love.focus(f)
@@ -941,17 +895,19 @@ function love.focus(f)
 	end
 end
 
----@param x number
----@param y number
-function love.wheelmoved(x, y)
-	scene:onInputPress({input=nil, type="wheel", x=x, y=y})
-end
-
 ---@param w integer
 ---@param h integer
 function love.resize(w, h)
 	GLOBAL_CANVAS:release()
 	GLOBAL_CANVAS = love.graphics.newCanvas(w, h)
+
+	SCREEN_SCALE_FACTOR = math.min(w / 640, h / 480)
+	GLOBAL_TRANSFORM:setTransformation(
+		(w - SCREEN_SCALE_FACTOR * 640) / 2,
+		(h - SCREEN_SCALE_FACTOR * 480) / 2,
+		0,
+		SCREEN_SCALE_FACTOR
+	)
 end
 
 -- higher values of TARGET_FPS will make the game run "faster"
@@ -1015,7 +971,7 @@ function love.run()
 		if love.timer then
 			processBGMFadeout(love.timer.step())
 		end
-		
+
 		if scene and scene.update and love.timer then
 			GLOBAL_STATE = "UPDATE"
 			scene:update()
